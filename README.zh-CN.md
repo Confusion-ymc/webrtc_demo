@@ -52,8 +52,8 @@
 ### 第 1 步：克隆仓库
 
 ```bash
-git clone <你的仓库地址>
-cd <你的仓库目录>
+git clone https://github.com/Confusion-ymc/webrtc_demo.git
+cd webrtc_demo
 ```
 
 ### 第 2 步：配置
@@ -67,27 +67,25 @@ cd <你的仓库目录>
     # docker-compose.yml
     command:
       # ... 其他选项
-      - --realm=YOUR_DOMAIN.COM
-      - --external-ip=YOUR_DOMAIN.COM
+      - --realm=YOUR_DOMAIN.COM       # <-- 修改这里为你的域名
+      - --external-ip=YOUR_DOMAIN.COM # <-- 修改这里为你的域名
       # 为 TURN 认证设置一个安全的用户和密码
       - --user=myuser:mypassword # <-- 修改这里
     ```
 
 2.  **配置前端 (`index.html`)**:
-    更新 `RTCPeerConnection` 的配置，填入您的域名和 TURN 凭证。
+    在 `<script>` 区域的顶部，更新 `iceServers` 常量，填入您的域名和 TURN 凭证。
 
     ```javascript
     // index.html
-    const pc = new RTCPeerConnection({
-        iceServers: [
-            { urls: 'stun:YOUR_DOMAIN.COM:3478' },
-            {
-                urls: 'turn:YOUR_DOMAIN.COM:3478',
-                username: 'myuser',       // <-- 修改这里
-                credential: 'mypassword'  // <-- 修改这里
-            }
-        ]
-    });
+    const iceServers = [
+        { urls: 'stun:YOUR_DOMAIN.COM:3478' },
+        {
+            urls: 'turn:YOUR_DOMAIN.COM:3478',
+            username: 'myuser',       // <-- 修改这里
+            credential: 'mypassword'  // <-- 修改这里
+        }
+    ];
     ```
 
 ### 第 3 步：配置防火墙

@@ -53,8 +53,8 @@ Follow these steps to deploy the application to a public server.
 ### Step 1: Clone the Repository
 
 ```bash
-git clone <your-repository-url>
-cd <your-repository-directory>
+git clone https://github.com/Confusion-ymc/webrtc_demo.git
+cd webrtc_demo
 ```
 
 ### Step 2: Configuration
@@ -75,20 +75,18 @@ You must configure your domain name and TURN credentials in two files.
     ```
 
 2.  **Configure Frontend (`index.html`)**:
-    Update the `RTCPeerConnection` configuration with your domain and TURN credentials.
+    Update the `iceServers` constant at the top of the `<script>` section with your domain and TURN credentials.
 
     ```javascript
     // index.html
-    const pc = new RTCPeerConnection({
-        iceServers: [
-            { urls: 'stun:YOUR_DOMAIN.COM:3478' },
-            {
-                urls: 'turn:YOUR_DOMAIN.COM:3478',
-                username: 'myuser',       // <-- CHANGE THIS
-                credential: 'mypassword'  // <-- CHANGE THIS
-            }
-        ]
-    });
+    const iceServers = [
+        { urls: 'stun:YOUR_DOMAIN.COM:3478' },
+        {
+            urls: 'turn:YOUR_DOMAIN.COM:3478',
+            username: 'myuser',       // <-- CHANGE THIS
+            credential: 'mypassword'  // <-- CHANGE THIS
+        }
+    ];
     ```
 
 ### Step 3: Firewall Configuration
