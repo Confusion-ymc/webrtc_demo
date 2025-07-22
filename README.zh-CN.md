@@ -1,9 +1,8 @@
+[English](./README.md)
+
 # WebRTC 音视频聊天应用
 
 这是一个功能齐全、可自托管的 WebRTC 视频聊天应用，基于 Python、FastAPI 和现代 Web 技术构建。它提供了一个多用户聊天室体验，并借助集成的 STUN/TURN 服务器，确保应用能在各种复杂的网络环境下（包括移动网络和严格的公司防火墙）正常工作。
-
-![image](https://github.com/user-attachments/assets/e2b4e57e-832b-468b-877c-13713111819b)
-
 
 ## ✨ 核心功能
 

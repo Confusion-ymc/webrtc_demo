@@ -1,8 +1,8 @@
+[中文文档](./README.zh-CN.md)
+
 # WebRTC Audio/Video Chat Demo
 
 This is a full-featured, self-hosted WebRTC video chat application built with Python, FastAPI, and modern web technologies. It provides a multi-user chat room experience that works across different networks, including mobile (5G/LTE) and strict corporate firewalls, thanks to its integrated STUN/TURN server.
-
-![image](https://github.com/user-attachments/assets/e2b4e57e-832b-468b-877c-13713111819b)
 
 
 ## ✨ Core Features
