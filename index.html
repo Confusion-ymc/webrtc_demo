@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>WebRTC Multi-User Video Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* General Styles */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 10px;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.8em;
+            margin-bottom: 0.5em;
+        }
+
+        /* Main container */
+        #room-container {
+            max-width: 1200px;
+            /* Wider for video */
+            margin: auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Controls for joining room */
+        #controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #controls input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        #controls button {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+
+        #join-room {
+            background-color: #28a745;
+        }
+
+        #join-room:hover {
+            background-color: #218838;
+        }
+
+        #leave-room {
+            background-color: #dc3545;
+        }
+
+        #leave-room:hover {
+            background-color: #c82333;
+        }
+
+        #join-room:disabled,
+        #leave-room:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        /* Peer List */
+        #peer-list-container {
+            margin-bottom: 20px;
+        }
+
+        #peer-list-container h3 {
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        #peer-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        #peer-list li {
+            background: #e9ecef;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            word-wrap: break-word;
+        }
+
+        /* Video Grid */
+        #video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+
+        .peer-container {
+            background: #000;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            /* Keep video corners rounded */
+        }
+
+        .peer-container p {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            margin: 0;
+            padding: 5px 8px;
+            font-weight: bold;
+            color: #fff;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            z-index: 1;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            /* Make video fill the container */
+            display: block;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 600px) {
+            body {
+                padding: 5px;
+            }
+
+            #room-container {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            #controls {
+                flex-direction: column;
+            }
+
+            #video-grid {
+                grid-template-columns: 1fr;
+                /* Single column on small screens */
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="room-container">
+        <h1>WebRTC Multi-User Video Chat</h1>
+        <div id="controls">
+            <input id="room-id" type="text" placeholder="Enter Room ID" />
+            <button id="join-room">Join Room</button>
+            <button id="leave-room" disabled>Leave Room</button>
+        </div>
+
+        <div id="peer-list-container">
+            <h3>In this Room:</h3>
+            <ul id="peer-list"></ul>
+        </div>
+
+        <div id="video-grid"></div>
+    </div>
+
+    <script>
+        const joinButton = document.getElementById("join-room");
+        const leaveButton = document.getElementById("leave-room");
+        const roomIdInput = document.getElementById("room-id");
+        const videoGrid = document.getElementById("video-grid");
+        const peerList = document.getElementById("peer-list");
+
+        const iceServers = [
+            { urls: 'stun:YOUR_DOMAIN.COM:3478' },
+            {
+                urls: 'turn:YOUR_DOMAIN.COM:3478',
+                username: 'myuser',
+                credential: 'mypassword'
+            }
+        ];
+
+        let localStream;
+        let pcs = {};
+        let ws;
+        let localId;
+
+        joinButton.onclick = async () => {
+            const roomId = roomIdInput.value;
+            if (!roomId) {
+                alert("Please enter a room ID");
+                return;
+            }
+
+            try {
+                // Request video and audio
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+                addVideoElement("local", localStream, true);
+            } catch (e) {
+                console.error("Failed to get local stream", e);
+                alert("Could not get camera/microphone access. Please check permissions and try again.");
+                return;
+            }
+
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/${roomId}`);
+
+            ws.onopen = () => {
+                console.log("WebSocket connection opened");
+                joinButton.disabled = true;
+                leaveButton.disabled = false;
+                roomIdInput.disabled = true;
+            };
+
+            ws.onmessage = async (message) => {
+                const data = JSON.parse(message.data);
+                console.log("Received message:", data);
+
+                switch (data.type) {
+                    case "welcome":
+                        localId = data.client_id;
+                        updatePeerList([localId, ...data.peers]);
+                        for (const peer_id of data.peers) {
+                            createPeerConnection(peer_id, true);
+                        }
+                        break;
+                    case "new-peer":
+                        updatePeerList([localId, ...Object.keys(pcs), data.peer_id]);
+                        // Existing peers wait for the offer from the new peer
+                        break;
+                    case "peer-left":
+                        handlePeerLeft(data.peer_id);
+                        break;
+                    case "offer":
+                        await handleOffer(data);
+                        break;
+                    case "answer":
+                        await handleAnswer(data);
+                        break;
+                    case "candidate":
+                        await handleCandidate(data);
+                        break;
+                }
+            };
+
+            ws.onclose = () => {
+                console.log("WebSocket connection closed");
+                cleanUp();
+            };
+        };
+
+        leaveButton.onclick = () => {
+            if (ws) {
+                ws.close();
+            }
+        };
+
+        function cleanUp() {
+            for (const peer_id in pcs) {
+                if (pcs[peer_id]) {
+                    pcs[peer_id].close();
+                }
+            }
+            pcs = {};
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            videoGrid.innerHTML = "";
+            peerList.innerHTML = "";
+            joinButton.disabled = false;
+            leaveButton.disabled = true;
+            roomIdInput.disabled = false;
+            localId = null;
+        }
+
+        async function createPeerConnection(peer_id, isOffer) {
+            const pc = new RTCPeerConnection({
+                iceServers
+            });
+            pcs[peer_id] = pc;
+
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({ type: "candidate", to: peer_id, candidate: event.candidate }));
+                }
+            };
+
+            pc.ontrack = (event) => {
+                addVideoElement(peer_id, event.streams[0]);
+            };
+
+            if (isOffer) {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                ws.send(JSON.stringify({ type: "offer", to: peer_id, sdp: pc.localDescription }));
+            }
+        }
+
+        async function handleOffer(data) {
+            const peer_id = data.from;
+            await createPeerConnection(peer_id, false);
+            await pcs[peer_id].setRemoteDescription(new RTCSessionDescription(data.sdp));
+            const answer = await pcs[peer_id].createAnswer();
+            await pcs[peer_id].setLocalDescription(answer);
+            ws.send(JSON.stringify({ type: "answer", to: peer_id, sdp: pcs[peer_id].localDescription }));
+        }
+
+        async function handleAnswer(data) {
+            await pcs[data.from].setRemoteDescription(new RTCSessionDescription(data.sdp));
+        }
+
+        async function handleCandidate(data) {
+            if (pcs[data.from]) {
+                await pcs[data.from].addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+        }
+
+        function handlePeerLeft(peer_id) {
+            if (pcs[peer_id]) {
+                pcs[peer_id].close();
+                delete pcs[peer_id];
+            }
+            const peerContainer = document.getElementById(`container-${peer_id}`);
+            if (peerContainer) {
+                peerContainer.remove();
+            }
+            updatePeerList([localId, ...Object.keys(pcs)]);
+        }
+
+        function addVideoElement(peer_id, stream, isLocal = false) {
+            let container = document.getElementById(`container-${peer_id}`);
+            if (container) return;
+
+            container = document.createElement("div");
+            container.id = `container-${peer_id}`;
+            container.className = "peer-container";
+
+            const p = document.createElement("p");
+            p.textContent = isLocal ? "You" : `Peer ${peer_id.substring(0, 8)}`;
+
+            const video = document.createElement("video");
+            video.srcObject = stream;
+            video.autoplay = true;
+            video.playsInline = true; // Important for iOS
+            video.muted = isLocal; // Mute local video to prevent feedback
+
+            container.appendChild(p);
+            container.appendChild(video);
+            videoGrid.appendChild(container);
+        }
+
+        function updatePeerList(peers) {
+            peerList.innerHTML = "";
+            peers.forEach(peer_id => {
+                const li = document.createElement("li");
+                li.textContent = peer_id === localId ? `You (${peer_id.substring(0, 8)})` : `Peer ${peer_id.substring(0, 8)}`;
+                peerList.appendChild(li);
+            });
+        }
+
+    </script>
+</body>
+
+</html>

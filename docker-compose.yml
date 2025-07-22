@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+    restart: always
+    depends_on:
+      - coturn
+
+  coturn:
+    image: coturn/coturn
+    ports:
+      # Map UDP port 3478 for STUN/TURN
+      - "3478:3478/udp"
+      # Map TCP port 3478 for STUN/TURN (optional but recommended)
+      - "3478:3478/tcp"
+    command:
+      - -n
+      - --log-file=stdout
+      - --realm=YOUR_DOMAIN.COM       # <-- IMPORTANT: Replace with your domain
+      - --external-ip=YOUR_DOMAIN.COM # <-- IMPORTANT: Replace with your domain
+      - --listening-ip=0.0.0.0
+      # --- TURN Settings ---
+      # Use long-term authentication
+      - -a
+      # Set a user for TURN authentication. Format: user=password
+      - --user=ymc:ymc4399  # <-- CHOOSE A SECURE USER/PASSWORD
+      - --no-tls
+      - --no-dtls
+    restart: always
