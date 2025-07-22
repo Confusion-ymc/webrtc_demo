@@ -28,7 +28,7 @@ services:
       # Use long-term authentication
       - -a
       # Set a user for TURN authentication. Format: user=password
-      - --user=ymc:ymc4399  # <-- CHOOSE A SECURE USER/PASSWORD
+      - --user=myuser:mypassword  # <-- CHOOSE A SECURE USER/PASSWORD
       - --no-tls
       - --no-dtls
     restart: always
